@@ -1,20 +1,74 @@
-const body = document.querySelector("body");
-const IMG_NUMBER = 4;
+const UNSPLASH_API_KEY =
+  "c7a73c2484eccb4b86a8956886432bb464e533df68a500d1eb8a921c09bf48ed";
 
-function paintImage(imgNumber) {
-  const image = new Image();
-  image.src = `images/${imgNumber}.jpg`;
-  image.classList.add("bgImage");
-  body.prepend(image);
-}
-function genRandom() {
-  const number = Math.ceil(Math.random() * IMG_NUMBER);
-  return number;
+const UNSPLASH_URL = `https://api.unsplash.com/photos/random/?client_id=${UNSPLASH_API_KEY}&query=landscape&orientation=landscape`;
+
+const body = document.querySelector("body"),
+  locationContainer = document.querySelector(".js-location span");
+
+function loadBackground() {
+  const savedImage = localStorage.getItem("bg");
+  if (savedImage == null) {
+    getBackground();
+  } else {
+    const parsedImage = JSON.parse(savedImage);
+    const today = new Date();
+    if (today > parsedImage.expiresOn) {
+      getBackground();
+    } else {
+      body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${
+        parsedImage.url
+      })`;
+      locationContainer.innerHTML = `${parsedImage.name}, ${
+        parsedImage.city
+      }, ${parsedImage.country}`;
+    }
+  }
 }
 
-function init() {
-  const randomNumber = genRandom();
-  paintImage(randomNumber);
+function getBackground() {
+  fetch(UNSPLASH_URL)
+    .then(response => response.json())
+    .then(json => {
+      const image = json;
+      if (image.urls && image.urls.full && image.location) {
+        const fullUrl = image.urls.full;
+        const location = image.location;
+        const city = location.city;
+        const country = location.country;
+        const name = location.name;
+        saveBackground(fullUrl, city, country, name);
+      } else {
+        getBackground();
+      }
+    })
+    .catch(error => {
+      console.log(error);
+    });
 }
 
-init();
+function saveBackground(imageUrl, city, country, name) {
+  const savedImage = localStorage.getItem("bg");
+  if (savedImage !== null) {
+    localStorage.removeItem("bg");
+  }
+
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + 1);
+  const imageObject = {
+    url: imageUrl,
+    expiresOn: expirationDate,
+    city,
+    country,
+    name
+  };
+
+  localStorage.setItem("bg", JSON.stringify(imageObject));
+  loadBackground();
+}
+
+function initApp() {
+  loadBackground();
+}
+
+initApp();
